@@ -5,7 +5,6 @@ WORKDIR /app
 COPY . ./
 
 RUN pip install -e .
-RUN playwright install
-RUN newspaper4k install
+RUN python -m playwright install --with-deps chromium
 
 CMD ["python", "-m", "news_room_bot"]
