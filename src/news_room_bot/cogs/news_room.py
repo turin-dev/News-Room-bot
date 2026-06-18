@@ -58,6 +58,7 @@ class NewsCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.channel_id_str = os.getenv("DISCORD_CHANNEL_ID")
+        self.db_path = os.getenv("NEWS_DB_PATH", "/data/news_history.db")
         self.channel_id = None
 
         if self.channel_id_str:
@@ -79,10 +80,10 @@ class NewsCog(commands.Cog):
         """데이터베이스 및 리포지토리 초기화"""
         await self.bot.wait_until_ready()
         try:
-            self.db_session_maker = await init_db("news_history.db")
+            self.db_session_maker = await init_db(self.db_path)
             self.news_repo = NewsRepository(self.db_session_maker)
             count = await self.news_repo.get_total_count()
-            logger.info(f"✓ 데이터베이스 초기화 완료. (총 {count}개 레코드)")
+            logger.info(f"✓ 데이터베이스 초기화 완료. 경로: {self.db_path} (총 {count}개 레코드)")
         except Exception as e:
             logger.error(f"데이터베이스 초기화 오류: {e}")
 
