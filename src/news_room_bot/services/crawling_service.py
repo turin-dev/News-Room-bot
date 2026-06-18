@@ -222,84 +222,88 @@ class CrawlingService:
 
     @staticmethod
     def is_it_news(title: str, content: str) -> bool:
-        """제목과 내용을 분석하여 IT 관련 뉴스인지 판단"""
-        core_it_keywords = [
-            '인공지능', 'ai', 'artificial intelligence', '머신러닝', 'machine learning',
-            '딥러닝', 'deep learning', 'gpt', '챗gpt', 'chatgpt', 'claude', '클로드',
-            'gemini', '제미나이', 'llama', '라마', 'ai 에이전트', 'ai agent',
-            '소프트웨어', 'software', '프로그래밍', 'programming', '코딩', 'coding',
-            '개발자', 'developer', 'software engineer', '앱개발', 'app development',
-            '사이버보안', 'cybersecurity', '해킹', 'hacking', '해커', 'hacker',
-            '랜섬웨어', 'ransomware', '악성코드', 'malware', '제로 트러스트', 'zero trust',
-            '데이터유출', 'data breach', '블록체인', 'blockchain', '암호화폐', 'cryptocurrency',
-            '비트코인', 'bitcoin', '이더리움', 'ethereum', '솔라나', 'solana', 'nft', 'web3',
-            '디파이', 'defi', '메타버스', 'metaverse', 'vr', 'virtual reality', '가상현실',
-            'ar', 'augmented reality', '증강현실', 'mr', 'mixed reality', 'xr',
-            '반도체', 'semiconductor', '칩', 'chip', 'cpu', 'gpu', 'npu', 'tpu', 'lpu',
-            '클라우드', 'cloud', '데이터센터', 'data center', 'saas', 'paas', 'iaas',
-            '자율주행', 'autonomous driving', 'fsd', 'autopilot', '오토파일럿',
-            '드론기술', 'drone', '로봇공학', 'robotics', '로봇', 'robot', '휴머노이드', 'humanoid',
-            '오픈ai', 'openai', '앤스로픽', 'anthropic', '딥마인드', 'deepmind',
-            '빅데이터', 'big data', '데이터분석', 'data analysis', '알고리즘', 'algorithm',
-            'hbm', '고대역폭메모리', 'high bandwidth memory', 'cxl', 'pim', '온디바이스 ai',
-            'on-device ai', 'edge ai', '생성형 ai', 'generative ai', 'rag', '검색 증강 생성',
-            '파인튜닝', 'fine-tuning', '미세조정', '프롬프트 엔지니어링', 'prompt engineering'
-        ]
-        
-        general_it_keywords = [
-            '애플리케이션', 'application', '플랫폼', 'platform', 'api', '5g', '6g',
-            '통신기술', 'telecommunication', 'iot', 'internet of things', '사물인터넷',
-            '게임개발', 'game development', '게임엔진', 'game engine', 'unity', '유니티',
-            'unreal engine', '언리얼 엔진', 'e스포츠', 'esports', '스마트폰', 'smartphone',
-            '태블릿', 'tablet', '웨어러블', 'wearable', '전기차', 'ev', 'electric vehicle',
-            '배터리기술', 'battery technology', '보안패치', 'security patch', '암호화', 'encryption',
-            '인증', 'authentication', '스타트업', 'startup', '테크기업', 'tech company',
-            '유니콘', 'unicorn', '디지털전환', 'dx', 'digital transformation', '디지털화'
-        ]
-        
-        support_it_keywords = [
-            '구글', 'google', 'alphabet', '알파벳', '애플', 'apple', '마이크로소프트', 'microsoft',
-            'ms', '아마존', 'amazon', 'aws', '메타', 'meta', 'facebook', '페이스북',
-            '테슬라', 'tesla', '네이버', 'naver', '카카오', 'kakao', '삼성전자', 'samsung',
-            'sk하이닉스', 'sk hynix', '하이닉스', 'hynix', 'lg전자', 'lg electronics',
-            '엔비디아', 'nvidia', '인텔', 'intel', 'amd', 'tsmc', '퀄컴', 'qualcomm',
-            '브로드컴', 'broadcom', 'asml', 'arm', '암', '슈퍼마이크로', 'smci',
-            '스노우플레이크', 'snowflake', '데이터브릭스', 'databricks', '허깅페이스', 'hugging face',
-            '넷플릭스', 'netflix', '오라클', 'oracle', 'ibm', '어도비', 'adobe',
-            'salesforce', '세일즈포스', '기술', 'technology', '서비스', 'service',
-            '온라인', 'online', '인터넷', 'internet', '웹', 'web', '디지털', 'digital',
-            'it', '정보기술', 'information technology', '게임', 'game', 'pc',
-            '데이터', 'data', '네트워크', 'network', '보안', 'security'
-        ]
-        
-        exclude_keywords = [
-            '주가', '시세', '상장', 'ipo', '코스피', 'kospi', '코스닥', 'kosdaq', '증시',
-            '투자', 'investment', '매수', 'buy', '매도', 'sell', '수익률', 'yield',
-            '배당', 'dividend', '주주총회', 'shareholders meeting', '분기실적', 'quarterly results',
-            '영업이익', 'operating profit', '순이익', 'net profit', '매출액', 'revenue',
-            '실적발표', 'earnings release', '증권', 'securities', '펀드', 'fund',
-            '채권', 'bond', '금리', 'interest rate', '환율', 'exchange rate',
-            '대통령', 'president', '국회', 'assembly', '정치', 'politics', '선거', 'election',
-            '의원', 'lawmaker', '부동산', 'real estate', '아파트', 'apartment', '집값'
-        ]
+        """제목과 내용을 분석하여 순수 IT 관련 뉴스인지 판단 (정교한 IT 키워드 정제 버전)"""
         
         title_lower = title.lower()
-        exclude_count = sum(1 for keyword in exclude_keywords if keyword.lower() in title_lower)
-        if exclude_count >= 2:
+        content_lower = content.strip().lower()
+        combined_text = f"{title_lower} {content_lower}"
+
+        # 1. 무조건 거를 금융/증권/정치 배제 키워드 ('증권' 포함시 제목에서 즉시 탈락)
+        exclude_keywords = [
+            '증권', '주가', '시세', '상장', 'ipo', '코스피', 'kospi', '코스닥', 'kosdaq', '증시',
+            '펀드', '채권', '금리', '환율', '재무', 'cfo', '회계', '과징금', '자산운용', '사모펀드',
+            '매수', '매도', '수익률', '배당', '완판', '공시강화', '의무공개매수', '합병가액', '종합투자계좌',
+            '원자재', '일반주주', '경영권', '상장폐지', '월가', '블랙록', '투자', 'investment', '투자자',
+            '금융위', '금융감독원', '금감원', '공정위', '공정거래위원회', 'm&a', '인수합병',
+            '대통령', '정치', '선거', '국회', '의원', '부동산', '아파트', '집값'
+        ]
+        
+        # [검증 1] 제목에 배제 키워드가 하나라도 있으면 즉시 탈락
+        if any(keyword in title_lower for keyword in exclude_keywords):
             return False
             
-        combined_text = f"{title} {content}".lower()
+        # [검증 2] 본문에 금융/투자 단어가 2개 이상 과도하게 언급되면 탈락
+        exclude_count = sum(1 for keyword in exclude_keywords if keyword in content_lower)
+        if exclude_count >= 2:
+            return False
+
+        # 2. 재정리한 순수 IT 핵심 키워드 (분야별 정밀화)
+        core_it_keywords = [
+            # 인공지능 / AI / LLM
+            '인공지능', 'ai', 'artificial intelligence', '머신러닝', 'machine learning',
+            '딥러닝', 'deep learning', '생성형 ai', 'generative ai', 'llm', '거대언어모델',
+            'gpt', '챗gpt', 'chatgpt', 'claude', '클로드', 'gemini', '제미나이', 'llama', '라마',
+            'ai 에이전트', 'ai agent', '온디바이스 ai', 'on-device ai', 'rag', '프롬프트 엔지니어링',
+            
+            # 소프트웨어 / 개발
+            '소프트웨어', 'software', '코딩', 'coding', '프로그래밍', 'programming',
+            '소스코드', 'source code', 'api', 'sdk', '개발자', 'developer', '앱개발', 
+            '알고리즘', 'algorithm', '깃허브', 'github',
+            
+            # 사이버 보안 / 해킹 ('유출' 관련 핵심 단어 수록)
+            '사이버보안', 'cybersecurity', '해킹', '해커', 'hacker', '랜섬웨어', 'ransomware',
+            '악성코드', 'malware', '피싱', 'phishing', '디도스', 'ddos', '제로 트러스트', 'zero trust',
+            '방화벽', 'firewall', '유출', '데이터유출', '정보유출', '기술유출',
+            
+            # 클라우드 / 인프라 / 네트워크
+            '클라우드', 'cloud', 'saas', 'paas', 'iaas', '데이터센터', 'data center',
+            '서버', 'server', '5g', '6g', '네트워크', 'network', 'iot', '사물인터넷',
+            
+            # 반도체 / 하드웨어
+            '반도체', 'semiconductor', '파운드리', 'foundry', '팹리스', 'fabless',
+            'hbm', '고대역폭메모리', 'cxl', 'gpu', 'npu', 'tpu', 'cpu', '칩', 'chip',
+            
+            # 미래 기술 / 모빌리티
+            '블록체인', 'blockchain', 'web3', '메타버스', 'metaverse', 'vr', 'ar', 'xr',
+            '가상현실', '증강현실', '양자컴퓨팅', 'quantum computing', '자율주행', 'autonomous driving',
+            '로봇공학', 'robotics', '로봇', 'robot'
+        ]
+        
+        # 3. 글로벌 빅테크 및 플랫폼 브랜드 키워드
+        tech_brands = [
+            '구글', 'google', '애플', 'apple', '마이크로소프트', 'microsoft', 'ms',
+            '아마존', 'amazon', 'aws', '메타', 'meta', '엔비디아', 'nvidia', '인텔', 'intel',
+            'amd', 'tsmc', '퀄컴', 'qualcomm', '오픈ai', 'openai', '앤스로픽', 'anthropic',
+            '네이버', 'naver', '카카오', 'kakao', '플랫폼', 'platform', '디지털전환', 'dx', '테크'
+        ]
+
+        # 4. IT 점수 계산
         score = 0
         for keyword in core_it_keywords:
-            if keyword.lower() in combined_text: score += 3
-        for keyword in general_it_keywords:
-            if keyword.lower() in combined_text: score += 2
-        for keyword in support_it_keywords:
-            if keyword.lower() in combined_text: score += 1
-            
+            if keyword in combined_text: 
+                score += 3
+        for keyword in tech_brands:
+            if keyword in combined_text: 
+                score += 1
+                
+        # 제목에 핵심 IT 단어가 직접 노출되었다면 보너스 점수 부여
         for keyword in core_it_keywords:
-            if keyword.lower() in title_lower:
+            if keyword in title_lower:
                 score += 2
                 break
                 
+        # 본문에 금융/투자 흔적이 조금이라도 남아있다면 허들을 극단적으로 상향 (10점 이상만 통과)
+        if any(kw in combined_text for kw in ['투자', '금융', 'm&a']):
+            return score >= 10
+            
         return score >= 5
