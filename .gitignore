@@ -207,3 +207,5 @@ __marimo__/
 .venv*
 ._*
 temp
+*.md
+!README.md
