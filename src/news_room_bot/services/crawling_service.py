@@ -18,7 +18,7 @@ class CrawlingService:
         self.naver_client_id = os.getenv("NAVER_CLIENT_ID")
         self.naver_client_secret = os.getenv("NAVER_CLIENT_SECRET")
         self.cloudflare_api_token = os.getenv("CLOUDFLARE_API_TOKEN")
-        self.use_cloudflare = False # Cloudflare 기능 비활성화 (지우지 않음)
+        self.use_cloudflare = bool(self.cloudflare_api_token)
         
         self.newspaper_available = True
         self.playwright_available = True
@@ -41,6 +41,9 @@ class CrawlingService:
 
     async def fetch_naver_news(self, query="IT 기술 인공지능 소프트웨어 -경제 -주식 -투자", display=10):
         """네이버 뉴스 API에서 IT 기술 뉴스 검색"""
+        if not self.naver_client_id or not self.naver_client_secret:
+            logger.warning("네이버 API 클라이언트 ID 또는 시크릿이 설정되지 않았습니다. 뉴스 검색을 건너뜁니다.")
+            return []
         url = "https://openapi.naver.com/v1/search/news.json"
         headers = {
             "X-Naver-Client-Id": self.naver_client_id,
@@ -70,7 +73,7 @@ class CrawlingService:
         """
         뉴스 기사 본문 추출 (4단계 폴백)
         1. Cloudflare Browser Rendering (환경변수 설정 시)
-        2. newspaper4k 시도
+        2. newspaper3k 시도
         3. 로컬 playwright 시도
         4. 실패 시 None 반환
         """
@@ -86,19 +89,19 @@ class CrawlingService:
             except Exception as e:
                 logger.warning(f"     ✗ Cloudflare 오류: {e}")
 
-        # 2단계: newspaper4k 시도
+        # 2단계: newspaper3k 시도
         try:
-            logger.info(f"  -> [1단계] newspaper로 본문 추출 시도...")
+            logger.info(f"  -> [1단계] newspaper3k로 본문 추출 시도...")
             article = Article3k(url, language='ko')
             await asyncio.wait_for(asyncio.to_thread(article.download), timeout=10.0)
             await asyncio.wait_for(asyncio.to_thread(article.parse), timeout=5.0)
             
             content = article.text.strip()
             if content and len(content) > 100:
-                logger.info(f"     ✓ newspaper 성공 (길이: {len(content)})")
-                return content, "newspaper"
+                logger.info(f"     ✓ newspaper3k 성공 (길이: {len(content)})")
+                return content, "newspaper3k"
         except Exception as e:
-            logger.warning(f"     ✗ newspaper 오류 또는 데이터 부족")
+            logger.warning(f"     ✗ newspaper3k 오류 또는 데이터 부족")
 
         # 3단계: 로컬 Playwright 시도
         try:
@@ -220,40 +223,72 @@ class CrawlingService:
     @staticmethod
     def is_it_news(title: str, content: str) -> bool:
         """제목과 내용을 분석하여 IT 관련 뉴스인지 판단"""
-        # (기존 logic 유지)
         core_it_keywords = [
-            '인공지능', 'AI', '머신러닝', '딥러닝', '챗GPT', 'ChatGPT', 'claude', '클로드',
-            '소프트웨어', '프로그래밍', '코딩', '개발자', '앱개발', '사이버보안', '해킹', '랜섬웨어',
-            '데이터유출', '블록체인', '암호화폐', '비트코인', '이더리움', 'NFT', '메타버스', 'VR',
-            '가상현실', 'AR', '증강현실', '반도체', '칩', 'CPU', 'GPU', 'NPU', '클라우드',
-            '데이터센터', 'SaaS', 'PaaS', '자율주행', '드론기술', '로봇공학', '오픈AI', 'OpenAI',
-            '앤스로픽', 'Anthropic', '딥마인드', '빅데이터', '데이터분석', '알고리즘',
+            '인공지능', 'ai', 'artificial intelligence', '머신러닝', 'machine learning',
+            '딥러닝', 'deep learning', 'gpt', '챗gpt', 'chatgpt', 'claude', '클로드',
+            'gemini', '제미나이', 'llama', '라마', 'ai 에이전트', 'ai agent',
+            '소프트웨어', 'software', '프로그래밍', 'programming', '코딩', 'coding',
+            '개발자', 'developer', 'software engineer', '앱개발', 'app development',
+            '사이버보안', 'cybersecurity', '해킹', 'hacking', '해커', 'hacker',
+            '랜섬웨어', 'ransomware', '악성코드', 'malware', '제로 트러스트', 'zero trust',
+            '데이터유출', 'data breach', '블록체인', 'blockchain', '암호화폐', 'cryptocurrency',
+            '비트코인', 'bitcoin', '이더리움', 'ethereum', '솔라나', 'solana', 'nft', 'web3',
+            '디파이', 'defi', '메타버스', 'metaverse', 'vr', 'virtual reality', '가상현실',
+            'ar', 'augmented reality', '증강현실', 'mr', 'mixed reality', 'xr',
+            '반도체', 'semiconductor', '칩', 'chip', 'cpu', 'gpu', 'npu', 'tpu', 'lpu',
+            '클라우드', 'cloud', '데이터센터', 'data center', 'saas', 'paas', 'iaas',
+            '자율주행', 'autonomous driving', 'fsd', 'autopilot', '오토파일럿',
+            '드론기술', 'drone', '로봇공학', 'robotics', '로봇', 'robot', '휴머노이드', 'humanoid',
+            '오픈ai', 'openai', '앤스로픽', 'anthropic', '딥마인드', 'deepmind',
+            '빅데이터', 'big data', '데이터분석', 'data analysis', '알고리즘', 'algorithm',
+            'hbm', '고대역폭메모리', 'high bandwidth memory', 'cxl', 'pim', '온디바이스 ai',
+            'on-device ai', 'edge ai', '생성형 ai', 'generative ai', 'rag', '검색 증강 생성',
+            '파인튜닝', 'fine-tuning', '미세조정', '프롬프트 엔지니어링', 'prompt engineering'
         ]
         
         general_it_keywords = [
-            '애플리케이션', '플랫폼', 'API', '5G', '6G', '통신기술', 'IoT', '게임개발', '게임엔진',
-            'e스포츠', '스마트폰', '태블릿', '웨어러블', '전기차', '배터리기술', '보안패치', '암호화',
-            '인증', '스타트업', '테크기업', '유니콘', '디지털전환', 'DX', '디지털화',
+            '애플리케이션', 'application', '플랫폼', 'platform', 'api', '5g', '6g',
+            '통신기술', 'telecommunication', 'iot', 'internet of things', '사물인터넷',
+            '게임개발', 'game development', '게임엔진', 'game engine', 'unity', '유니티',
+            'unreal engine', '언리얼 엔진', 'e스포츠', 'esports', '스마트폰', 'smartphone',
+            '태블릿', 'tablet', '웨어러블', 'wearable', '전기차', 'ev', 'electric vehicle',
+            '배터리기술', 'battery technology', '보안패치', 'security patch', '암호화', 'encryption',
+            '인증', 'authentication', '스타트업', 'startup', '테크기업', 'tech company',
+            '유니콘', 'unicorn', '디지털전환', 'dx', 'digital transformation', '디지털화'
         ]
         
         support_it_keywords = [
-            '구글', '애플', '마이크로소프트', '아마존', '메타', '테슬라', '네이버', '카카오',
-            '삼성전자', 'SK하이닉스', 'LG전자', '기술', '서비스', '온라인', '인터넷', '웹',
-            '디지털', 'IT', '정보기술', '게임', 'PC', '데이터', '네트워크', '보안',
+            '구글', 'google', 'alphabet', '알파벳', '애플', 'apple', '마이크로소프트', 'microsoft',
+            'ms', '아마존', 'amazon', 'aws', '메타', 'meta', 'facebook', '페이스북',
+            '테슬라', 'tesla', '네이버', 'naver', '카카오', 'kakao', '삼성전자', 'samsung',
+            'sk하이닉스', 'sk hynix', '하이닉스', 'hynix', 'lg전자', 'lg electronics',
+            '엔비디아', 'nvidia', '인텔', 'intel', 'amd', 'tsmc', '퀄컴', 'qualcomm',
+            '브로드컴', 'broadcom', 'asml', 'arm', '암', '슈퍼마이크로', 'smci',
+            '스노우플레이크', 'snowflake', '데이터브릭스', 'databricks', '허깅페이스', 'hugging face',
+            '넷플릭스', 'netflix', '오라클', 'oracle', 'ibm', '어도비', 'adobe',
+            'salesforce', '세일즈포스', '기술', 'technology', '서비스', 'service',
+            '온라인', 'online', '인터넷', 'internet', '웹', 'web', '디지털', 'digital',
+            'it', '정보기술', 'information technology', '게임', 'game', 'pc',
+            '데이터', 'data', '네트워크', 'network', '보안', 'security'
         ]
         
         exclude_keywords = [
-            '주가', '시세', '상장', 'IPO', '코스피', '코스닥', '증시', '투자', '매수', '매도',
-            '수익률', '배당', '주주총회', '분기실적', '영업이익', '순이익', '매출액', '실적발표',
-            '증권', '펀드', '채권', '금리', '환율', '대통령', '국회', '정치', '선거', '의원',
-            '부동산', '아파트', '집값',
+            '주가', '시세', '상장', 'ipo', '코스피', 'kospi', '코스닥', 'kosdaq', '증시',
+            '투자', 'investment', '매수', 'buy', '매도', 'sell', '수익률', 'yield',
+            '배당', 'dividend', '주주총회', 'shareholders meeting', '분기실적', 'quarterly results',
+            '영업이익', 'operating profit', '순이익', 'net profit', '매출액', 'revenue',
+            '실적발표', 'earnings release', '증권', 'securities', '펀드', 'fund',
+            '채권', 'bond', '금리', 'interest rate', '환율', 'exchange rate',
+            '대통령', 'president', '국회', 'assembly', '정치', 'politics', '선거', 'election',
+            '의원', 'lawmaker', '부동산', 'real estate', '아파트', 'apartment', '집값'
         ]
         
-        combined_text = f"{title} {content}".lower()
-        exclude_count = sum(1 for keyword in exclude_keywords if keyword.lower() in combined_text)
+        title_lower = title.lower()
+        exclude_count = sum(1 for keyword in exclude_keywords if keyword.lower() in title_lower)
         if exclude_count >= 2:
             return False
             
+        combined_text = f"{title} {content}".lower()
         score = 0
         for keyword in core_it_keywords:
             if keyword.lower() in combined_text: score += 3
@@ -262,7 +297,6 @@ class CrawlingService:
         for keyword in support_it_keywords:
             if keyword.lower() in combined_text: score += 1
             
-        title_lower = title.lower()
         for keyword in core_it_keywords:
             if keyword.lower() in title_lower:
                 score += 2
