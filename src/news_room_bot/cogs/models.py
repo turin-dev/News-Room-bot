@@ -1,7 +1,9 @@
+from datetime import datetime
+from pathlib import Path
+
 from sqlalchemy import Column, String, Integer, DateTime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from datetime import datetime
 
 Base = declarative_base()
 
@@ -16,7 +18,11 @@ class NewsHistory(Base):
 # 데이터베이스 엔진 및 세션 설정
 async def init_db(db_path: str = "news_history.db"):
     """데이터베이스 초기화"""
-    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", echo=False)
+    db_file = Path(db_path)
+    if db_file.parent != Path('.'):
+        db_file.parent.mkdir(parents=True, exist_ok=True)
+
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_file}", echo=False)
     
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
